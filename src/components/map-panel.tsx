@@ -58,9 +58,13 @@ function RecenterMap({
 function createHeadingIcon(headingDeg: number): L.DivIcon {
   return L.divIcon({
     className: "heading-icon",
-    html: `<div class=\"heading-icon__arrow\" style=\"transform: rotate(${headingDeg}deg);\">▲</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    html: `<svg class=\"heading-icon__svg\" viewBox=\"0 0 40 40\" style=\"transform: rotate(${headingDeg}deg);\" aria-hidden=\"true\">
+  <circle cx=\"20\" cy=\"20\" r=\"2.4\" fill=\"#0f172a\" />
+  <path d=\"M20 4 L25 16 L20 13 L15 16 Z\" fill=\"#0f172a\" />
+  <path d=\"M20 13 L20 30\" stroke=\"#0f172a\" stroke-width=\"2\" stroke-linecap=\"round\" />
+</svg>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   });
 }
 
@@ -87,6 +91,14 @@ export function MapPanel({
     return createHeadingIcon(headingDeg);
   }, [headingDeg]);
 
+  const userLatLng = useMemo<[number, number] | null>(() => {
+    if (!currentPosition) {
+      return null;
+    }
+
+    return [currentPosition.lat, currentPosition.lng];
+  }, [currentPosition]);
+
   return (
     <section className="map-shell" aria-label="Field map">
       <MapContainer
@@ -100,15 +112,15 @@ export function MapPanel({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {currentPosition && (
+        {currentPosition && userLatLng && (
           <>
             <RecenterMap
-              lat={currentPosition.lat}
-              lng={currentPosition.lng}
+              lat={userLatLng[0]}
+              lng={userLatLng[1]}
               followMe={followMe}
             />
             <Circle
-              center={[currentPosition.lat, currentPosition.lng]}
+              center={userLatLng}
               radius={Math.max(currentPosition.accuracyM ?? 4, 4)}
               pathOptions={{
                 color: "#38a3ff",
@@ -118,7 +130,7 @@ export function MapPanel({
               }}
             />
             <CircleMarker
-              center={[currentPosition.lat, currentPosition.lng]}
+              center={userLatLng}
               radius={8}
               pathOptions={{
                 color: "#0056b7",
@@ -129,8 +141,9 @@ export function MapPanel({
             />
             {headingIcon && (
               <Marker
-                position={[currentPosition.lat, currentPosition.lng]}
+                position={userLatLng}
                 icon={headingIcon}
+                interactive={false}
               />
             )}
           </>
