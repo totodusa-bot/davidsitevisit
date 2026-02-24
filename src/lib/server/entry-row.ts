@@ -10,12 +10,25 @@ export interface JournalEntryRow {
   accuracy_m: number | null;
   heading_deg: number | null;
   measurement_kind: "direct" | "calculated";
-  direct_value: number | null;
-  calc_base_value: number | null;
-  calc_top_value: number | null;
+  direct_value: number | string | null;
+  calc_base_value: number | string | null;
+  calc_top_value: number | string | null;
   unit: "imperial" | "metric";
   notes: string;
   deleted: boolean;
+}
+
+function toNumberOrNull(value: number | string | null): number | null {
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export function rowToDto(row: JournalEntryRow): JournalEntryDTO {
@@ -29,9 +42,9 @@ export function rowToDto(row: JournalEntryRow): JournalEntryDTO {
     accuracyM: row.accuracy_m,
     headingDeg: row.heading_deg,
     measurementKind: row.measurement_kind,
-    directValue: row.direct_value,
-    calcBaseValue: row.calc_base_value,
-    calcTopValue: row.calc_top_value,
+    directValue: toNumberOrNull(row.direct_value),
+    calcBaseValue: toNumberOrNull(row.calc_base_value),
+    calcTopValue: toNumberOrNull(row.calc_top_value),
     unit: row.unit,
     notes: row.notes,
     deleted: row.deleted,

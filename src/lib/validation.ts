@@ -3,8 +3,8 @@ import { z } from "zod";
 const baseEntrySchema = z.object({
   id: z.uuid(),
   visitId: z.string().min(1),
-  capturedAt: z.iso.datetime(),
-  updatedAt: z.iso.datetime(),
+  capturedAt: z.iso.datetime({ offset: true }),
+  updatedAt: z.iso.datetime({ offset: true }),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   accuracyM: z.number().nonnegative().nullable(),

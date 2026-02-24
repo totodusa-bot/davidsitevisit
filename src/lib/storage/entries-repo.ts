@@ -92,7 +92,10 @@ export async function restoreEntry(id: string): Promise<void> {
 }
 
 export async function getPendingEntries(): Promise<LocalJournalEntry[]> {
-  return db.entries.where("syncState").equals("pending").toArray();
+  return db.entries
+    .where("syncState")
+    .anyOf(["pending", "error"])
+    .toArray();
 }
 
 export async function markSynced(ids: string[]): Promise<void> {

@@ -67,4 +67,15 @@ describe("journalEntrySchema", () => {
     const result = journalEntrySchema.safeParse(entry);
     expect(result.success).toBe(false);
   });
+
+  it("accepts timezone offset timestamps from Supabase", () => {
+    const entry = {
+      ...baseEntry(),
+      capturedAt: "2026-02-24T22:24:05+00:00",
+      updatedAt: "2026-02-24T22:24:05+00:00",
+    };
+
+    const result = journalEntrySchema.safeParse(entry);
+    expect(result.success).toBe(true);
+  });
 });
