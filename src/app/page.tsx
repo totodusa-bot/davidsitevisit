@@ -17,12 +17,16 @@ const DynamicMapPanel = dynamic(() => import("@/components/map-panel").then((mod
   loading: () => <section className="map-shell">Loading map...</section>,
 });
 
+type MapStyle = "street" | "satellite";
+
 export default function HomePage() {
   const entriesApi = useEntries();
   const cloud = useCloudSync();
   const location = useLocationHeading();
 
   const [followMe, setFollowMe] = useState(true);
+  const [manualPingMode, setManualPingMode] = useState(false);
+  const [mapStyle, setMapStyle] = useState<MapStyle>("street");
   const [draftMode, setDraftMode] = useState<"create" | "edit">("create");
   const [draft, setDraft] = useState<JournalEntryDTO | null>(null);
 
@@ -32,6 +36,33 @@ export default function HomePage() {
     () => entriesApi.entries.filter((entry) => !entry.deleted),
     [entriesApi.entries],
   );
+
+  function openDraftAt(
+    lat: number,
+    lng: number,
+    accuracyM: number | null,
+    sourceHeadingDeg: number | null,
+  ) {
+    const now = new Date().toISOString();
+    setDraftMode("create");
+    setDraft({
+      id: crypto.randomUUID(),
+      visitId: PUBLIC_VISIT_ID,
+      capturedAt: now,
+      updatedAt: now,
+      lat,
+      lng,
+      accuracyM,
+      headingDeg: sourceHeadingDeg,
+      measurementKind: "direct",
+      directValue: null,
+      calcBaseValue: null,
+      calcTopValue: null,
+      unit: DEFAULT_UNIT,
+      notes: "",
+      deleted: false,
+    });
+  }
 
   return (
     <main className="page-shell">
@@ -82,6 +113,15 @@ export default function HomePage() {
           entries={activeEntries}
           followMe={followMe}
           onToggleFollow={() => setFollowMe((prev) => !prev)}
+          mapStyle={mapStyle}
+          onToggleMapStyle={() =>
+            setMapStyle((prev) => (prev === "street" ? "satellite" : "street"))
+          }
+          manualPingMode={manualPingMode}
+          onMapSelectForManualPing={(lat, lng) => {
+            setManualPingMode(false);
+            openDraftAt(lat, lng, null, location.headingDeg);
+          }}
         />
 
         <JournalPanel
@@ -93,27 +133,20 @@ export default function HomePage() {
             if (!location.position) {
               return;
             }
-
-            const now = new Date().toISOString();
-            setDraftMode("create");
-            setDraft({
-              id: crypto.randomUUID(),
-              visitId: PUBLIC_VISIT_ID,
-              capturedAt: now,
-              updatedAt: now,
-              lat: location.position.lat,
-              lng: location.position.lng,
-              accuracyM: location.position.accuracyM,
-              headingDeg: location.headingDeg,
-              measurementKind: "direct",
-              directValue: null,
-              calcBaseValue: null,
-              calcTopValue: null,
-              unit: DEFAULT_UNIT,
-              notes: "",
-              deleted: false,
-            });
+            setManualPingMode(false);
+            openDraftAt(
+              location.position.lat,
+              location.position.lng,
+              location.position.accuracyM,
+              location.headingDeg,
+            );
           }}
+          manualPingMode={manualPingMode}
+          onStartManualPing={() => {
+            setManualPingMode(true);
+            setFollowMe(false);
+          }}
+          onCancelManualPing={() => setManualPingMode(false)}
           onEditEntry={(entry) => {
             setDraftMode("edit");
             setDraft(localToDto(entry));

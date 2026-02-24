@@ -16,6 +16,9 @@ interface JournalPanelProps {
   locationError: string | null;
   headingAvailable: boolean;
   onDropPing: () => void;
+  manualPingMode: boolean;
+  onStartManualPing: () => void;
+  onCancelManualPing: () => void;
   onEditEntry: (entry: LocalJournalEntry) => void;
   onDeleteEntry: (id: string) => Promise<void>;
   onRestoreEntry: (id: string) => Promise<void>;
@@ -51,6 +54,9 @@ export function JournalPanel({
   locationError,
   headingAvailable,
   onDropPing,
+  manualPingMode,
+  onStartManualPing,
+  onCancelManualPing,
   onEditEntry,
   onDeleteEntry,
   onRestoreEntry,
@@ -109,10 +115,29 @@ export function JournalPanel({
         >
           Drop Ping Here
         </button>
+        <button
+          type="button"
+          className="button button--secondary button--large"
+          onClick={() => {
+            if (manualPingMode) {
+              onCancelManualPing();
+              return;
+            }
+
+            onStartManualPing();
+          }}
+        >
+          {manualPingMode ? "Cancel Manual Ping" : "Place Manual Ping"}
+        </button>
         {!canDropPing && (
           <p className="hint">
             Location is required before creating entries.
             {locationError ? ` ${locationError}` : ""}
+          </p>
+        )}
+        {manualPingMode && (
+          <p className="hint">
+            Manual ping mode is active. Tap the map to place the next ping.
           </p>
         )}
         {!headingAvailable && (

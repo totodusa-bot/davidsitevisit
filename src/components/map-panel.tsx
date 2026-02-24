@@ -12,6 +12,7 @@ import {
   Popup,
   TileLayer,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 
 import { formatDualMeasurement } from "@/lib/units";
@@ -29,6 +30,10 @@ interface MapPanelProps {
   entries: LocalJournalEntry[];
   followMe: boolean;
   onToggleFollow: () => void;
+  mapStyle: "street" | "satellite";
+  onToggleMapStyle: () => void;
+  manualPingMode: boolean;
+  onMapSelectForManualPing: (lat: number, lng: number) => void;
 }
 
 function RecenterMap({
@@ -91,12 +96,36 @@ function destinationPoint(
   return [toDeg(lat2), toDeg(lng2)];
 }
 
+function ManualPingTapHandler({
+  enabled,
+  onSelect,
+}: {
+  enabled: boolean;
+  onSelect: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(event) {
+      if (!enabled) {
+        return;
+      }
+
+      onSelect(event.latlng.lat, event.latlng.lng);
+    },
+  });
+
+  return null;
+}
+
 export function MapPanel({
   currentPosition,
   headingDeg,
   entries,
   followMe,
   onToggleFollow,
+  mapStyle,
+  onToggleMapStyle,
+  manualPingMode,
+  onMapSelectForManualPing,
 }: MapPanelProps) {
   const center: [number, number] = useMemo(() => {
     if (currentPosition) {
@@ -130,17 +159,43 @@ export function MapPanel({
     };
   }, [headingDeg, userLatLng]);
 
+  const tileLayerConfig = useMemo(() => {
+    if (mapStyle === "satellite") {
+      return {
+        url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        attribution:
+          "Tiles © Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+        maxZoom: 19,
+      };
+    }
+
+    return {
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 20,
+    };
+  }, [mapStyle]);
+
   return (
-    <section className="map-shell" aria-label="Field map">
+    <section
+      className={clsx("map-shell", manualPingMode && "map-shell--manual")}
+      aria-label="Field map"
+    >
       <MapContainer
         center={center}
         zoom={currentPosition ? 17 : 3}
         scrollWheelZoom
         className="map-canvas"
       >
+        <ManualPingTapHandler
+          enabled={manualPingMode}
+          onSelect={onMapSelectForManualPing}
+        />
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={tileLayerConfig.attribution}
+          url={tileLayerConfig.url}
+          maxZoom={tileLayerConfig.maxZoom}
         />
 
         {currentPosition && userLatLng && (
@@ -233,13 +288,28 @@ export function MapPanel({
           ))}
       </MapContainer>
 
-      <button
-        type="button"
-        className={clsx("chip", followMe && "chip--active")}
-        onClick={onToggleFollow}
-      >
-        {followMe ? "Following" : "Follow me"}
-      </button>
+      {manualPingMode && (
+        <div className="map-mode-banner">
+          Tap anywhere on the map to place a manual ping.
+        </div>
+      )}
+
+      <div className="map-chip-stack">
+        <button
+          type="button"
+          className={clsx("chip", followMe && "chip--active")}
+          onClick={onToggleFollow}
+        >
+          {followMe ? "Following" : "Follow me"}
+        </button>
+        <button
+          type="button"
+          className="chip"
+          onClick={onToggleMapStyle}
+        >
+          {mapStyle === "street" ? "Satellite" : "Street"}
+        </button>
+      </div>
     </section>
   );
 }
