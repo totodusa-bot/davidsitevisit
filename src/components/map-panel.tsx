@@ -3,12 +3,12 @@
 import { useEffect, useMemo } from "react";
 
 import clsx from "clsx";
-import L from "leaflet";
 import {
   Circle,
   CircleMarker,
   MapContainer,
-  Marker,
+  Polygon,
+  Polyline,
   Popup,
   TileLayer,
   useMap,
@@ -55,17 +55,40 @@ function RecenterMap({
   return null;
 }
 
-function createHeadingIcon(headingDeg: number): L.DivIcon {
-  return L.divIcon({
-    className: "heading-icon",
-    html: `<svg class=\"heading-icon__svg\" viewBox=\"0 0 40 40\" style=\"transform: rotate(${headingDeg}deg);\" aria-hidden=\"true\">
-  <circle cx=\"20\" cy=\"20\" r=\"2.4\" fill=\"#0f172a\" />
-  <path d=\"M20 4 L25 16 L20 13 L15 16 Z\" fill=\"#0f172a\" />
-  <path d=\"M20 13 L20 30\" stroke=\"#0f172a\" stroke-width=\"2\" stroke-linecap=\"round\" />
-</svg>`,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-  });
+function toRad(value: number): number {
+  return (value * Math.PI) / 180;
+}
+
+function toDeg(value: number): number {
+  return (value * 180) / Math.PI;
+}
+
+function destinationPoint(
+  lat: number,
+  lng: number,
+  bearingDeg: number,
+  distanceM: number,
+): [number, number] {
+  const earthRadiusM = 6_378_137;
+  const angularDistance = distanceM / earthRadiusM;
+
+  const lat1 = toRad(lat);
+  const lng1 = toRad(lng);
+  const bearing = toRad(bearingDeg);
+
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angularDistance) +
+      Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing),
+  );
+
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
+      Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2),
+    );
+
+  return [toDeg(lat2), toDeg(lng2)];
 }
 
 export function MapPanel({
@@ -83,14 +106,6 @@ export function MapPanel({
     return [37.773972, -122.431297];
   }, [currentPosition]);
 
-  const headingIcon = useMemo(() => {
-    if (headingDeg === null) {
-      return null;
-    }
-
-    return createHeadingIcon(headingDeg);
-  }, [headingDeg]);
-
   const userLatLng = useMemo<[number, number] | null>(() => {
     if (!currentPosition) {
       return null;
@@ -98,6 +113,22 @@ export function MapPanel({
 
     return [currentPosition.lat, currentPosition.lng];
   }, [currentPosition]);
+
+  const headingGeometry = useMemo(() => {
+    if (!userLatLng || headingDeg === null) {
+      return null;
+    }
+
+    const [lat, lng] = userLatLng;
+    const tip = destinationPoint(lat, lng, headingDeg, 14);
+    const leftWing = destinationPoint(tip[0], tip[1], headingDeg + 145, 5);
+    const rightWing = destinationPoint(tip[0], tip[1], headingDeg - 145, 5);
+
+    return {
+      shaft: [userLatLng, tip] as [number, number][],
+      head: [leftWing, tip, rightWing] as [number, number][],
+    };
+  }, [headingDeg, userLatLng]);
 
   return (
     <section className="map-shell" aria-label="Field map">
@@ -139,12 +170,29 @@ export function MapPanel({
                 weight: 2,
               }}
             />
-            {headingIcon && (
-              <Marker
-                position={userLatLng}
-                icon={headingIcon}
-                interactive={false}
-              />
+            {headingGeometry && (
+              <>
+                <Polyline
+                  positions={headingGeometry.shaft}
+                  interactive={false}
+                  pathOptions={{
+                    color: "#0f172a",
+                    weight: 3,
+                    opacity: 0.95,
+                    lineCap: "round",
+                  }}
+                />
+                <Polygon
+                  positions={headingGeometry.head}
+                  interactive={false}
+                  pathOptions={{
+                    color: "#0f172a",
+                    fillColor: "#0f172a",
+                    fillOpacity: 0.98,
+                    weight: 1,
+                  }}
+                />
+              </>
             )}
           </>
         )}
